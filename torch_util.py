@@ -8,10 +8,10 @@ import numpy as np
 def pad(t, length, batch_first=False):
     """
     Padding the sequence to a fixed length.
-    :param t: [B * T * D] if batch_first else [T * B * D]
+    :param t: [B * T * D] or [B * T] if batch_first else [T * B * D] or [T * B]
     :param length: [B]
-    :param batch_first: 
-    :return: 
+    :param batch_first:
+    :return:
     """
     if batch_first:
         # [B * T * D]
@@ -32,28 +32,60 @@ def pad(t, length, batch_first=False):
 
 def batch_first2time_first(inputs):
     """
-    :param inputs: [B * T * D] 
+    Convert input from batch_first to time_first:
+    [B * T * D] -> [T * B * D]
+    
+    :param inputs:
     :return:
     """
-    return torch.transpose()
+    return torch.transpose(inputs, 0, 1)
 
+
+def time_first2batch_first(inputs):
+    """
+    Convert input from batch_first to time_first:
+    [T * B * D] -> [B * T * D] 
+    
+    :param inputs:
+    :return:
+    """
+
+    return torch.transpose(inputs, 0, 1)
 
 
 def get_state_shape(rnn: nn.RNN, batch_size, bidirectional=False):
+    """
+    Return the state shape of a given RNN. This is helpful when you want to create a init state for RNN.
+
+    Example:
+    h0 = Variable(src_seq_p.data.new(*get_state_shape(self.encoder, 3, bidirectional)).zero_())
+    
+    :param rnn: 
+    :param batch_size: 
+    :param bidirectional: 
+    :return: 
+    """
     if bidirectional:
         return rnn.num_layers * 2, batch_size, rnn.hidden_size
     else:
         return rnn.num_layers, batch_size, rnn.hidden_size
 
 
-def pack_list_sequence(inputs, l):
+def pack_list_sequence(inputs, l, batch_first=False):
+    """
+    Pack a batch of Tensor into one Tensor.
+    :param inputs: 
+    :param l: 
+    :return: 
+    """
     batch_list = []
     max_l = max(list(l))
     batch_size = len(inputs)
 
     for b_i in range(batch_size):
         batch_list.append(pad(inputs[b_i], max_l))
-    pack_batch_list = torch.stack(batch_list, dim=1)
+    pack_batch_list = torch.stack(batch_list, dim=1) if not batch_first \
+        else torch.stack(batch_list, dim=0)
     return pack_batch_list
 
 
