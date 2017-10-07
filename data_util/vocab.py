@@ -1,10 +1,12 @@
 import hashlib
 
 import array
+import os
 from collections import Counter
 
 import logging
 import torch
+from torchtext.data import Field, Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +17,37 @@ This is a util module for:
     2. Building vocabulary for your corpus.
 """
 
+
+class LabelField(Field):
+    def __init__(self, label_list=None, label_name=None, unk_num=0):
+        super(LabelField, self).__init__(sequential=False)
+        self.label_list = label_list
+        self.label_name = label_name
+        self.field_counter = Counter()
+
+        if label_list:
+            self.vocab = ExVocab(init_elements_list=label_list, unk_num=unk_num)
+        else:
+            self.vocab = ExVocab(init_elements_list=[], unk_num=unk_num)
+
+    def count_tokens(self, *args, **kwargs):
+            sources = []
+            for arg in args:
+                if isinstance(arg, Dataset):
+                    """
+                    Modify this code to incorporate more Field into counter.
+                    """
+                    sources += [getattr(arg, name) for name, field in
+                                arg.fields.items()
+                                if field is self or field.label_name == self.label_name]
+                else:
+                    sources.append(arg)
+
+            for data in sources:
+                for x in data:
+                    if not self.sequential:
+                        x = [x]
+                    self.field_counter.update(x)
 
 
 class STOI(dict):
