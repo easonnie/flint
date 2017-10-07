@@ -139,8 +139,8 @@ def pack_for_rnn_seq(inputs, lengths, batch_first=False):
         reverse_indices = list(reverse_indices)
 
         s_inputs = torch.stack(s_inputs_list, dim=0)
-        print(s_inputs)
-        print(lengths_list)
+        # print(s_inputs)
+        # print(lengths_list)
         packed_seq = nn.utils.rnn.pack_padded_sequence(s_inputs, lengths_list, batch_first=batch_first)
 
         return packed_seq, reverse_indices
