@@ -681,3 +681,5 @@ def text_conv1d(inputs, l1, conv_filter: nn.Linear, k_size, dropout=None, list_i
     # print(out_list)
 
     return out_list
+
+# Test something
