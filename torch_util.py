@@ -5,6 +5,15 @@ from torch.autograd import Variable
 import numpy as np
 
 
+def pad_1d(t, pad_l):
+    l = t.size(0)
+    if l >= pad_l:
+        return t
+    else:
+        pad_seq = Variable(t.data.new(pad_l - l, *t.size()[1:]).zero_())
+        return torch.cat([t, pad_seq], dim=0)
+
+
 def pad(t, length, batch_first=False):
     """
     Padding the sequence to a fixed length.
@@ -134,8 +143,6 @@ def pack_for_rnn_seq(inputs, lengths, batch_first=False):
             lengths_list.append(lengths[i])
             reverse_indices[i] = j
 
-        # print(s_inputs_list)
-        # print(lengths_list)
         reverse_indices = list(reverse_indices)
 
         s_inputs = torch.stack(s_inputs_list, dim=0)
@@ -158,6 +165,70 @@ def unpack_from_rnn_seq(packed_seq, reverse_indices, batch_first=False):
         for i in reverse_indices:
             s_inputs_list.append(unpacked_seq[i, :, :].unsqueeze(0))
         return torch.cat(s_inputs_list, 0)
+
+
+def auto_rnn(rnn: nn.RNN, seqs, lengths, batch_first=True):
+
+    batch_size = seqs.size(0) if batch_first else seqs.size(1)
+    state_shape = get_state_shape(rnn, batch_size, rnn.bidirectional)
+
+    h0 = c0 = Variable(seqs.data.new(*state_shape).zero_())
+
+    packed_pinputs, r_index = pack_for_rnn_seq(seqs, lengths, batch_first)
+    output, (hn, cn) = rnn(packed_pinputs, (h0, c0))
+    output = unpack_from_rnn_seq(output, r_index, batch_first)
+
+    return output
+
+
+def pack_seqence_for_linear(inputs, lengths, batch_first=True):
+    """
+    :param inputs: [B * T * D] if batch_first 
+    :param lengths:  [B]
+    :param batch_first:  
+    :param partition:  this is the new batch_size for parallel matrix process.
+    :param chuck: partition the output into equal size chucks
+    :return: 
+    """
+    batch_list = []
+    if batch_first:
+        for i, l in enumerate(lengths):
+            batch_list.append(inputs[i, :l])
+        packed_sequence = torch.cat(batch_list, 0)
+        # if chuck:
+        #     return list(torch.chunk(packed_sequence, chuck, dim=0))
+        # else:
+        return packed_sequence
+
+    else:
+        raise NotImplemented()
+
+
+def chucked_forward(inputs, net, chuck=None):
+    if not chuck:
+        return net(inputs)
+    else:
+        output_list = [net(chuck) for chuck in torch.chunk(inputs, chuck, dim=0)]
+        return torch.cat(output_list, dim=0)
+
+
+def unpack_seqence_for_linear(inputs, lengths, batch_first=True):
+    batch_list = []
+    max_l = max(lengths)
+
+    if not isinstance(inputs, list):
+        inputs = [inputs]
+    inputs = torch.cat(inputs)
+
+    if batch_first:
+        start = 0
+        for l in lengths:
+            end = start + l
+            batch_list.append(pad_1d(inputs[start:end], max_l))
+            start = end
+        return torch.stack(batch_list)
+    else:
+        raise NotImplemented()
 
 
 def auto_rnn_bilstm(lstm: nn.LSTM, seqs, lengths):
@@ -400,9 +471,9 @@ def max_over_grammatrix(inputs, l1, l2):
     for b in range(batch_size):
         b_gram_matrix = inputs[:l2[b], :l1[b], b, :]
         dim = b_gram_matrix.size(-1)
-        # print(b_gram_matrix.contiguous().view(-1, dim))
+
         b_max, _ = torch.max(b_gram_matrix.contiguous().view(-1, dim), dim=0)
-        # print(b_max)
+
         max_out_list.append(b_max)
 
     max_out = torch.cat(max_out_list, dim=0)
