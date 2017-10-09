@@ -641,7 +641,7 @@ def max_along_time(inputs, lengths, list_in=False):
     if not list_in:
         b_seq_max_list = []
         for i, l in enumerate(ls):
-            seq_i = inputs[:l, i, :]
+            seq_i = inputs[i, :l, :]
             seq_i_max, _ = seq_i.max(dim=0)
             seq_i_max = seq_i_max.squeeze()
             b_seq_max_list.append(seq_i_max)
