@@ -243,12 +243,12 @@ def seq2seq_cross_entropy(logits, label, l, chuck=None):
     cross_entropy_losss = functools.partial(F.cross_entropy, size_average=False)
     total = sum(l)
     if chuck:
-        logits_losses = []
+        logits_losses = 0
         for x, y in zip(torch.chunk(logits, chuck, dim=0), torch.chunk(packed_label, chuck, dim=0)):
-            logits_losses.append(cross_entropy_losss(x, y))
-        return sum(logits_losses) / total
+            logits_losses += cross_entropy_losss(x, y)
+        return logits_losses * (1 / total)
     else:
-        return cross_entropy_losss(logits, packed_label) / total
+        return cross_entropy_losss(logits, packed_label) * (1 / total)
 
 
 def auto_rnn_bilstm(lstm: nn.LSTM, seqs, lengths):
