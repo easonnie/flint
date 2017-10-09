@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import numpy as np
-
+import functools
 
 def pad_1d(t, pad_l):
     l = t.size(0)
@@ -229,6 +229,26 @@ def unpack_seqence_for_linear(inputs, lengths, batch_first=True):
         return torch.stack(batch_list)
     else:
         raise NotImplemented()
+
+
+def seq2seq_cross_entropy(logits, label, l, chuck=None):
+    """
+    :param logits: [exB * V] : exB = sum(l)
+    :param label: [B] : a batch of Label
+    :param l: [B] : a batch of LongTensor indicating the lengths of each inputs
+    :param chuck: Number of chuck to process
+    :return: A loss value
+    """
+    packed_label = pack_seqence_for_linear(label, l)
+    cross_entropy_losss = functools.partial(F.cross_entropy, size_average=False)
+    total = sum(l)
+    if chuck:
+        logits_losses = []
+        for x, y in zip(torch.chunk(logits, chuck, dim=0), torch.chunk(packed_label, chuck, dim=0)):
+            logits_losses.append(cross_entropy_losss(x, y))
+        return sum(logits_losses) / total
+    else:
+        return cross_entropy_losss(logits, packed_label) / total
 
 
 def auto_rnn_bilstm(lstm: nn.LSTM, seqs, lengths):
