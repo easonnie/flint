@@ -403,32 +403,6 @@ def topk_weighted_sum(s, w, k, l):
     return torch.cat(result_list, dim=0)
 
 
-def topk_dp_weighted_sum(s, w, l):
-    batch_size = w.size(1)
-    result_list = []
-    for b_i in range(batch_size):
-        # print(w.size())
-        # print(l[b_i])
-
-        # Dynamic pooling
-
-        k = (int(l[b_i] - 1) // 10) + 1
-
-        b_w = w[:l[b_i], b_i, :]
-        b_s = s[:l[b_i], b_i, :]  # T, D
-        if l[b_i] == 1:
-            b_topk, b_topk_indices = b_s.max(dim=0)
-        elif l[b_i] < k:
-            b_topk, b_topk_indices = torch.topk(b_s, l[b_i], dim=0)
-        else:
-            b_topk, b_topk_indices = torch.topk(b_s, k, dim=0)
-
-        b_topk_w = torch.gather(b_w, 0, b_topk_indices)
-        soft_b_topk_w = F.softmax(b_topk_w.transpose(0, 1)).transpose(0, 1)
-        result_list.append(torch.sum(soft_b_topk_w * b_topk, dim=0))
-    return torch.cat(result_list, dim=0)
-
-
 def pack_to_matching_matrix(s1, s2, cat_only=[False, False]):
     t1 = s1.size(0)
     t2 = s2.size(0)
