@@ -5,8 +5,11 @@ import os
 from collections import Counter
 
 import logging
+
+import six
 import torch
 from torchtext.data import Field, Dataset
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -31,23 +34,23 @@ class LabelField(Field):
             self.vocab = ExVocab(init_elements_list=[], unk_num=unk_num)
 
     def count_tokens(self, *args, **kwargs):
-            sources = []
-            for arg in args:
-                if isinstance(arg, Dataset):
-                    """
-                    Modify this code to incorporate more Field into counter.
-                    """
-                    sources += [getattr(arg, name) for name, field in
-                                arg.fields.items()
-                                if field is self or field.label_name == self.label_name]
-                else:
-                    sources.append(arg)
+        sources = []
+        for arg in args:
+            if isinstance(arg, Dataset):
+                """
+                Modify this code to incorporate more Field into counter.
+                """
+                sources += [getattr(arg, name) for name, field in
+                            arg.fields.items()
+                            if field is self or field.label_name == self.label_name]
+            else:
+                sources.append(arg)
 
-            for data in sources:
-                for x in data:
-                    if not self.sequential:
-                        x = [x]
-                    self.field_counter.update(x)
+        for data in sources:
+            for x in data:
+                if not self.sequential:
+                    x = [x]
+                self.field_counter.update(x)
 
 
 class STOI(dict):
