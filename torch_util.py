@@ -177,11 +177,15 @@ def unpack_from_rnn_seq(packed_seq, reverse_indices, batch_first=True):
         return torch.cat(s_inputs_list, 0)
 
 
-def auto_rnn(rnn: nn.RNN, seqs, lengths, batch_first=True):
+def auto_rnn(rnn: nn.RNN, seqs, lengths, batch_first=True, init_state=None):
     batch_size = seqs.size(0) if batch_first else seqs.size(1)
     state_shape = get_state_shape(rnn, batch_size, rnn.bidirectional)
 
-    h0 = c0 = Variable(seqs.data.new(*state_shape).zero_())
+    if not init_state:
+        h0 = c0 = Variable(seqs.data.new(*state_shape).zero_())
+    else:
+        h0 = init_state['h0'].expand(state_shape)
+        c0 = init_state['c0'].expand(state_shape)
 
     packed_pinputs, r_index = pack_for_rnn_seq(seqs, lengths, batch_first)
     output, (hn, cn) = rnn(packed_pinputs, (h0, c0))
@@ -237,7 +241,7 @@ def unpack_sequence_for_linear(inputs, lengths, batch_first=True):
         raise NotImplemented()
 
 
-def seq2seq_cross_entropy(logits, label, l, chuck=None):
+def seq2seq_cross_entropy(logits, label, l, chuck=None, sos_truncate=True):
     """
     :param logits: [exB, V] : exB = sum(l)
     :param label: [B] : a batch of Label
@@ -288,3 +292,31 @@ def max_along_time(inputs, lengths, list_in=False):
             b_seq_max_list.append(seq_i_max)
 
         return torch.stack(b_seq_max_list)
+
+
+def start_and_end_token_handling(inputs, lengths, sos_index=1, eos_index=2, pad_index=0,
+                                 op=None):
+    """
+    :param inputs: [B, T]
+    :param lengths: [B]
+    :param sos_index: 
+    :param eos_index: 
+    :param pad_index: 
+    :return: 
+    """
+    batch_size = inputs.size(0)
+
+    if not op:
+        return inputs, lengths
+    elif op == 'rm_start':
+        inputs = torch.cat([inputs[:, 1:], Variable(inputs.data.new(batch_size, 1).zero_())], dim=1)
+        return inputs, lengths - 1
+    elif op == 'rm_end':
+        for i in range(batch_size):
+            inputs[i, lengths[i] - 1] = pad_index
+        return inputs, lengths - 1
+    elif op == 'rm_both':
+        for i in range(batch_size):
+            inputs[i, lengths[i] - 1] = pad_index
+        inputs = torch.cat([inputs[:, 1:], Variable(inputs.data.new(batch_size, 1).zero_())], dim=1)
+        return inputs, lengths - 2
