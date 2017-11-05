@@ -8,7 +8,9 @@ import logging
 
 import six
 import torch
+
 from torchtext.data import Field, Dataset
+
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
@@ -19,6 +21,7 @@ This is a util module for:
     1. Loading word embeddings.
     2. Building vocabulary for your corpus.
 """
+# SNLI
 
 
 class LabelField(Field):

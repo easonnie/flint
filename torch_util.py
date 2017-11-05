@@ -204,6 +204,7 @@ def pack_sequence_for_linear(inputs, lengths, batch_first=True):
     batch_list = []
     if batch_first:
         for i, l in enumerate(lengths):
+            # print(inputs[i, :l].size())
             batch_list.append(inputs[i, :l])
         packed_sequence = torch.cat(batch_list, 0)
         # if chuck:
