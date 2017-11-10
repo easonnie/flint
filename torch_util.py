@@ -323,49 +323,67 @@ def start_and_end_token_handling(inputs, lengths, sos_index=1, eos_index=2, pad_
         return inputs, lengths - 2
 
 
-def seq2seq_att(inputs, lengths, aligner, att_net=None):
+def seq2seq_att(mems, lengths, state, att_net=None):
     """
-    :param inputs: [B, T, D_attee] This are the alignees.
+    :param mems: [B, T, D_mem] This are the memories.
+                    I call memory for this variable because I think attention is just like read something and then
+                    make alignments with your memories.
+                    This memory here is usually the input hidden state of the encoder.
+
     :param lengths: [B]
-    :param attender: [B, D_atter]
-    :param att_net: 
+    :param state: [B, D_state]
+                    I call state for this variable because it's the state I percepts at this time step.
+
+    :param att_net: This is the attention network that will be used to calculate the alignment score between
+                    state and memories.
+                    input of the att_net is mems and state with shape:
+                        mems: [exB, D_mem]
+                        state: [exB, D_state]
+                    return of the att_net is [exB, 1]
+
+                    So any function that map a vector to a scalar could work.
+
     :return: [B, D_result] 
     """
-    d_atter = aligner.size(1)
+
+    d_state = state.size(1)
 
     if not att_net:
-        return aligner
+        return state
     else:
-        batch_list_alignee = []
-        batch_list_aligner = []
+        batch_list_mems = []
+        batch_list_state = []
         for i, l in enumerate(lengths):
-            b_alignee = inputs[i, :l] # [T, D_attee]
-            batch_list_alignee.append(b_alignee)
+            b_mems = mems[i, :l] # [T, D_mem]
+            batch_list_mems.append(b_mems)
 
-            b_aligner = aligner[i].expand(b_alignee.size(0), d_atter) # [T, D_atter]
-            batch_list_aligner.append(b_aligner)
+            b_state = state[i].expand(b_mems.size(0), d_state) # [T, D_state]
+            batch_list_state.append(b_state)
 
-        packed_sequence_alignee = torch.cat(batch_list_alignee, 0) # [sum(l), D_attee]
-        packed_sequence_aligner = torch.cat(batch_list_aligner, 0) # [sum(l), D_atter]
+        packed_sequence_mems = torch.cat(batch_list_mems, 0) # [sum(l), D_mem]
+        packed_sequence_state = torch.cat(batch_list_state, 0) # [sum(l), D_state]
 
-        align_score = att_net(packed_sequence_alignee, packed_sequence_aligner) # [sum(l), 1]
+        align_score = att_net(packed_sequence_mems, packed_sequence_state) # [sum(l), 1]
+
         # The score grouped as [(a1, a2, a3), (a1, a2), (a1, a2, a3, a4)].
-        aligned_seq = packed_sequence_alignee * align_score
+        # aligned_seq = packed_sequence_mems * align_score
 
         start = 0
         result_list = []
         for i, l in enumerate(lengths):
             end = start + l
 
-            b_alignee = packed_sequence_alignee[start:end, :] # [l, D_attee]
+            b_mems = packed_sequence_mems[start:end, :] # [l, D_mems]
             b_score = align_score[start:end, :] # [l, 1]
-            softed_b_score = F.softmax(b_score.transpose(0, 1)).transpose(0, 1)
-            weighted_sum = torch.sum(b_alignee * softed_b_score, dim=0, keepdim=False)
 
-            # weighted_sum = torch.sum(aligned_seq[start:end, :], dim=0, keepdim=False)
+            softed_b_score = F.softmax(b_score.transpose(0, 1)).transpose(0, 1) # [l, 1]
+
+            weighted_sum = torch.sum(b_mems * softed_b_score, dim=0, keepdim=False) # [D_mems]
+
             result_list.append(weighted_sum)
 
             start = end
 
         result = torch.stack(result_list, dim=0)
+
         return result
