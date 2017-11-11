@@ -314,11 +314,15 @@ def start_and_end_token_handling(inputs, lengths, sos_index=1, eos_index=2, pad_
         return inputs, lengths - 1
     elif op == 'rm_end':
         for i in range(batch_size):
-            inputs[i, lengths[i] - 1] = pad_index
+            pass
+            # Potential problems!?
+            # inputs[i, lengths[i] - 1] = pad_index
         return inputs, lengths - 1
     elif op == 'rm_both':
         for i in range(batch_size):
-            inputs[i, lengths[i] - 1] = pad_index
+            pass
+            # Potential problems!?
+            # inputs[i, lengths[i] - 1] = pad_index
         inputs = torch.cat([inputs[:, 1:], Variable(inputs.data.new(batch_size, 1).zero_())], dim=1)
         return inputs, lengths - 2
 
