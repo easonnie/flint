@@ -177,7 +177,7 @@ def unpack_from_rnn_seq(packed_seq, reverse_indices, batch_first=True):
         return torch.cat(s_inputs_list, 0)
 
 
-def auto_rnn(rnn: nn.RNN, seqs, lengths, batch_first=True, init_state=None):
+def auto_rnn(rnn: nn.RNN, seqs, lengths, batch_first=True, init_state=None, output_last_states=False):
     batch_size = seqs.size(0) if batch_first else seqs.size(1)
     state_shape = get_state_shape(rnn, batch_size, rnn.bidirectional)
 
@@ -191,7 +191,10 @@ def auto_rnn(rnn: nn.RNN, seqs, lengths, batch_first=True, init_state=None):
     output, (hn, cn) = rnn(packed_pinputs, (h0, c0))
     output = unpack_from_rnn_seq(output, r_index, batch_first)
 
-    return output
+    if not output_last_states:
+        return output
+    else:
+        return output, (hn, cn)
 
 
 def pack_sequence_for_linear(inputs, lengths, batch_first=True):
