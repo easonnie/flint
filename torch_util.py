@@ -35,7 +35,7 @@ def pad(seqs, length, batch_first=True):
     if batch_first:
         # [B * T * D]
         if length <= seqs.size(1):
-            return seqs
+            return seqs[:, :length]
         else:
             batch_size = seqs.size(0)
             pad_seq = Variable(seqs.data.new(batch_size, length - seqs.size(1), *seqs.size()[2:]).zero_())
